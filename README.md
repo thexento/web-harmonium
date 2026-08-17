@@ -1,395 +1,400 @@
-# 🎶 Web Harmonium
+# Web Harmonium
 
-A rich, interactive web-based harmonium (traditional reed organ) that you can play directly in your browser using your computer keyboard or a MIDI keyboard. Beautiful Victorian-inspired UI with full-featured audio controls.
+A browser-based digital harmonium built with native web technologies.
 
-> **Live Demo**: [https://webharmonium.xento.xyz/](https://webharmonium.xento.xyz/)
-
----
-
-## ✨ Key Features
-
-| Feature | Description |
-|---------|-------------|
-| ⌨️ **Keyboard Input** | Intuitive QWERTY-to-piano key mapping — press keys to play notes |
-| 🎹 **MIDI Support** | Connect external MIDI keyboards for authentic playing experience |
-| 📱 **Mobile Touch** | Full touchscreen support with responsive on-screen virtual keyboard |
-| 🎚 **Volume & Reverb** | Real-time volume control (1-100%) + convolver-based reverb effect |
-| 🎼 **Octave Shifting** | Switch between 7 octave registers for different pitch ranges |
-| 🎜 **Transposition** | Transpose songs by ±11 semitones without re-learning key positions |
-| 🎧 **Polyphony** | Stack multiple reed voices for richer, layered harmonium tone |
-| 📚 **Song Helper** | Built-in note guide system for learning and practicing songs |
-| 💾 **Offline Ready** | Progressive Web App (PWA) — install & play offline with service worker |
-| 🎨 **Premium UI** | Golden Victorian-inspired theme with smooth animations and responsive design |
+**Live:** https://harmonium.xento.us.kg/
 
 ---
 
-## 🎮 How to Play
+## Overview
 
-### Quick Start
-1. Open `index.html` in any modern browser
-2. Click **"Load Module"** to initialize audio engine
-3. Start pressing keys!
+Web Harmonium is a lightweight digital harmonium that runs entirely in the browser.
 
-### Keyboard Layout
+It uses the Web Audio API for sample playback and audio processing, with the keyboard interface implemented using HTML, CSS, and JavaScript.
 
-The app maps a standard QWERTY keyboard to a piano layout:
-
-```
-WHITE KEYS (Main Notes)
-┌─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─┐
-│ ` │ q │ w │ e │ r │ t │ y │ u │ i │ o │ p │ [ │ ] │ \ │
-└─   ─   ─   ─   ─   ─   ─   ─   ─   ─   ─   ─   ─   ─┘
-              C   D   E   F   G   A   B
-
-BLACK KEYS (Accidentals)
-     ...┌─┐  ┌─┐...┌─┐  ┌─┐  ┌─┐...┌─┐  ┌─┐...
-     ... │1│  │2│... │4│  │5│  │7│... │8│  │9│...
-     ...└─┘  └─┘...└─┘  └─┘  └─┘...└─┘  └─┘...
-         C#  D#    F#  G#  A#
-
-MORE KEYS
- - / = / - / - / =
-```
-
-### Control Keys
-
-| Key | Action |
-|-----|--------|
-| `S` / `A` | Octave down / up |
-| `Backspace` | Remove last note from notation |
-| `Delete` | Clear all notation |
-| `Enter` | Log notation to console |
-| `Tab` | Add comma to notation |
+The project is frontend-only and does not require a backend, database, or server-side application.
 
 ---
 
-## 🎛️ Settings Panel
+## Technology
 
-Access via the **⚙ Settings** button in the navbar:
+- HTML5
+- CSS3
+- JavaScript (ES6+)
+- Web Audio API
+- Web MIDI API
+- Web Storage API
+- Progressive Web App APIs
 
-### Volume & Effects
-- **Volume**: 1-100% output level
-- **Reverb**: Toggle convolver-based reverb for authentic resonance
-
-### Tuning & Register
-- **Transpose** (±11 semitones): Change key without re-learning positions
-- **Octave** (0-6 registers): Select pitch range for comfortable playing
-- **Reeds** (0+ layers): Add additional voices for richer tone
-
-### MIDI Keyboard
-- Detect connected MIDI devices
-- Select input device from dropdown
-- Supports note-on/note-off messages and CC7 (volume) messages
-- **Refresh** button to detect newly connected devices
-
-### Note Helpers (Song Management)
-- View built-in practice songs
-- Add custom songs with note sequences
-- Save songs to browser session
-- Export as `config.js` (permanent) or JSON (portable)
+No frontend framework is required.
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
-```
-harmonium/
-├── index.html                    # Main UI & settings modal
-├── Scripts/
-│   ├── keys.js                  # Keyboard handling & layout engine
-│   ├── sound_sys.js             # Audio engine & MIDI support
-│   └── serviceworker.js         # Offline caching
-├── Notes/
-│   └── Keynotes.js              # Song library & note helper system
+web-harmonium/
+├── index.html
 ├── Styles/
-│   └── style.css                # Victorian themed styling
+│   └── style.css
+├── Scripts/
+│   ├── sound_sys.js
+│   └── keys.js
 ├── Sounds/
-│   ├── harmonium-trad-orig.wav  # Harmonium sample (looped)
-│   └── reverb.wav               # Impulse response for reverb
+│   ├── harmonium-trad-orig.wav
+│   └── reverb.wav
 ├── Configs/
-│   ├── manifest.json            # PWA metadata
-│   └── serviceworker.js         # Service worker registration
-└── README.md                    # This file
-```
+│   └── manifest.json
+└── icons/
+    └── favicon.png
+
+### index.html
+
+Contains the application structure, instrument keyboard, controls, settings interface, and PWA metadata.
+
+### Styles/style.css
+
+Contains the visual styling and layout of the application, including the harmonium cabinet, keybed, controls, responsive layout, and key interaction states.
+
+### Scripts/sound_sys.js
+
+Contains the audio engine.
+
+Responsibilities include:
+
+- AudioContext initialization
+- Harmonium sample loading
+- AudioBufferSourceNode management
+- Polyphonic playback
+- Pitch detuning
+- Octave shifting
+- Transposition
+- Reed stacking
+- Master volume
+- Reverb
+- MIDI input
+
+### Scripts/keys.js
+
+Contains keyboard interaction and UI-related JavaScript.
+
+It handles keyboard interaction, key visual states, responsive key layout, and touch interaction.
+
+### Sounds/harmonium-trad-orig.wav
+
+The primary harmonium sample used by the audio engine.
+
+### Sounds/reverb.wav
+
+The impulse response used by the convolution reverb.
+
+### Configs/manifest.json
+
+Progressive Web App manifest.
+
+### icons/favicon.png
+
+Application and browser icon.
 
 ---
 
-## 🏗️ Technical Architecture
+## Keyboard Mapping
 
-### Audio Pipeline
+The keyboard contains 14 white keys and 9 black keys.
 
-```
-┌─────────────────────────────────────────────────┐
-│  Keyboard Input / MIDI / Touch Events           │
-└────────────┬────────────────────────────────────┘
-             │
-             ├─ Keyboard Map → MIDI Note (0-127)
-             └─ Pitch Detune (±100 cents)
-                          │
-             ┌────────────┴────────────┐
-             │                         │
-          ┌──▼───┐            ┌────────▼──┐
-          │ OSC  │            │   Buffer  │
-          │ Note │            │  Source   │
-          │  ON  │            │  (Loop)   │
-          └──────┘            └────────┬──┘
-             │                         │
-             └────────────┬────────────┘
-                          │
-                    ┌─────▼─────┐
-                    │ Gain Node │  (Master volume)
-                    └─────┬─────┘
-                          │
-            ┌─────────────┼─────────────┐
-            │             │             │
-        ┌───▼──┐      ┌───▼──┐    ┌───▼──┐
-        │Output│      │Reverb│    │ Ctx  │
-        │Dest. │      │(Cond)│    │(opt) │
-        └──────┘      └──────┘    └──────┘
-```
+### White Keys
 
-### Key Technologies
-- **Web Audio API**: Audio synthesis & processing
-- **AudioContext**: Audio graph management
-- **ConvolverNode**: Impulse response-based reverb
-- **BufferSource**: Sample playback with pitch shifting via detune
-- **Web MIDI API**: Hardware MIDI keyboard support
-- **Service Worker**: Offline support & caching strategy
-- **localStorage**: Persistent preference storage
+| Keyboard Key | MIDI Note |
+| :----------- | ---------: |
+| `` ` ``      | 55 |
+| `q`          | 57 |
+| `w`          | 59 |
+| `e`          | 60 |
+| `r`          | 62 |
+| `t`          | 64 |
+| `y`          | 65 |
+| `u`          | 67 |
+| `i`          | 69 |
+| `o`          | 71 |
+| `p`          | 72 |
+| `[`          | 74 |
+| `]`          | 76 |
+| `\`          | 77 |
+
+### Black Keys
+
+| Keyboard Key | MIDI Note |
+| :----------- | ---------: |
+| `1`          | 56 |
+| `2`          | 58 |
+| `4`          | 61 |
+| `5`          | 63 |
+| `7`          | 66 |
+| `8`          | 68 |
+| `9`          | 70 |
+| `-`          | 73 |
+| `=`          | 75 |
+
+The mapping is defined in `Scripts/sound_sys.js`.
 
 ---
 
-## ⚙️ Audio Features Explained
+## Audio Engine
 
-### Looping Sample
-- Uses a traditional harmonium WAV recording
-- Pitch-shifted using `detune.value` (in cents: ±100 = ±1 semitone)
-- Loop range: 0.5s to 7.5s for seamless playing
-- All 128 MIDI notes supported via detune offset
+The audio system is built around the browser's native Web Audio API.
 
-### Reverb System
-- Optional convolver node with impulse response
-- Reverb IR: `Sounds/reverb.wav`
-- Toggle on/off in real-time without stopping notes
-- Enhances authenticity of harmonium tone
+The basic signal path is:
 
-### Octave & Transposition
-- **Octave**: Shifts all notes by octaves using `octaveMap` array
-- **Transpose**: Shifts all notes by semitones using `keyMap`
-- Root note displayed based on current transposition
-- All settings persist in localStorage
+AudioBufferSourceNode
+        |
+        v
+    GainNode
+        |
+        +--------------------> AudioContext.destination
+        |
+        v
+   ConvolverNode
+      (Reverb)
+        |
+        v
+ AudioContext.destination
 
-### Polyphony (Reeds)
-- Stack parameter creates layered notes
-- Playing note `X` with stack=2 also triggers notes `X+12` and `X+24` (upper octaves)
-- Creates fuller, richer harmonium character
-- Configurable from settings (0-7+ layers)
+The harmonium sample is loaded into an AudioBuffer and played through individual AudioBufferSourceNode instances.
+
+Each source can be detuned to represent a different key.
 
 ---
 
-## 📱 Mobile & Responsive Design
+## Polyphony
 
-### Desktop Experience
-- Full QWERTY keyboard support
-- 14 white keys + 9 black keys visible
-- Navbar with volume & reverb controls
-- Settings button for additional controls
+Notes are handled independently so multiple keys can be played simultaneously.
 
-### Mobile Experience (≤600px width)
-- Automatic on-screen virtual keyboard
-- Touch-friendly key sizes (responsive to viewport)
-- Portrait/landscape detection with auto-reflow
-- Hidden navbar controls → moved to settings modal
-- Full piano-like layout with black keys properly positioned
+When a note is triggered, the audio engine determines its position using the current octave and transpose settings.
 
-### Touch Handling
-- Both touchstart/touchend and mouse events supported
-- preventDefault on touch to avoid scrolling
-- Smooth key press feedback with CSS class toggling
-- No lag or double-triggering
+Additional reed voices can be enabled through the stack control.
+
+The stack is limited by the available octave range.
 
 ---
 
-## 💾 Data Persistence
+## Pitch
 
-All user preferences automatically saved to browser `localStorage`:
+Pitch is adjusted using AudioBufferSourceNode.detune.
 
-```javascript
-// Keys stored:
-webharmonium.volume        // 1-100
-webharmonium.useReverb     // true/false
-webharmonium.octave        // 0-6
-webharmonium.transpose     // -11 to +11
-webharmonium.stack         // number of additional reeds
-webharmonium.custom_songs  // JSON array of user-added songs
-```
+The engine works in cents:
 
-Clear localStorage to reset to defaults (or use browser dev tools).
+Detune = Key Offset × 100
+
+A semitone corresponds to 100 cents.
+
+The base mapping is generated around the configured root key and can then be modified using the transpose control.
 
 ---
 
-## 🎼 Built-in Practice Songs
+## Transpose
 
-The app includes 3 pre-loaded songs in `Notes/Keynotes.js`:
+Transpose shifts the keyboard by semitones.
 
-| Song | Type | Use Case |
-|------|------|----------|
-| **Sa Re Ga Ma (Practice)** | Scale exercise | Beginner warm-up |
-| **Raghupati Raghav** | Traditional Indian | Popular folk song |
-| **Kaayar Joo The** | Traditional | Advanced practice |
+The current implementation allows a range of:
 
-### Adding Custom Songs
-Edit `Notes/Keynotes.js`:
-```javascript
-HARMONIUM_SONGS.push({
-  name: "My Song",
-  notes: "e r t y u i o p\np o i u y t r e"
-});
-```
+-11 ... +11
 
-Or use the Settings panel to add dynamically and export!
+The selected value is stored locally and restored when the application is loaded again.
 
 ---
 
-## 🌐 Browser Support
+## Octave
 
-| Browser | Support | Notes |
-|---------|---------|-------|
-| Chrome/Chromium | ✅ Full | Best performance |
-| Firefox | ✅ Full | Full Web Audio support |
-| Safari | ✅ Good | PWA limited, audio works |
-| Edge | ✅ Full | Chromium-based |
-| Mobile Safari | ⚠️ Limited | Audio restrictions apply |
+The octave control changes the register used when calculating the note position.
 
-**Requirements:**
-- ES6+ JavaScript support
-- Web Audio API (all modern browsers)
-- Optional: Web MIDI API (hardware keyboards)
-- Optional: Service Workers (PWA/offline)
+The available octave range is:
+
+0 ... 6
+
+The selected octave is stored locally.
 
 ---
 
-## 📦 PWA Installation
+## Reed Stack
 
-### Install on Home Screen
+The stack control allows additional octave voices to be played alongside the selected note.
 
-**Android Chrome/Firefox:**
-1. Open app in browser
-2. Menu → "Install app" or "Add to Home Screen"
-3. Opens as full-screen standalone app
+For example:
 
-**Desktop:**
-- Chrome/Edge: Click install icon in address bar (if permitted)
-- Firefox: Add to home screen via menu
+Stack 0
+    Base voice
 
-### Offline Support
-Once installed, the service worker caches:
-- `index.html`
-- `webharmonium.html`
-- All scripts & stylesheets
-- Harmonium sample & reverb IR
+Stack 1
+    Base voice
+    +1 octave
 
-App works fully offline after first load!
+Stack 2
+    Base voice
+    +1 octave
+    +2 octaves
+
+The maximum stack value is constrained by the current octave.
 
 ---
 
-## 🎯 Keyboard Reference Card
+## Reverb
 
-**Quick Reference** (also visible in UI):
+Web Harmonium uses a ConvolverNode for its reverb effect.
 
-```
-┌─ WHITE KEYS ────────────────────────────┐
-│ ` q w | e r t y u i o | p [ ] \        │
-│     (prefix)    C D E F G A B (suffix)  │
-└─────────────────────────────────────────┘
+The impulse response is loaded from:
 
-┌─ BLACK KEYS ────────────────────────────┐
-│       1   2      4  5     7  8  9  -  = │
-│       C#  D#     F# G#    A# B♭ C# D♭  │
-└─────────────────────────────────────────┘
+Sounds/reverb.wav
 
-┌─ OCTAVE CONTROL ────────────────────────┐
-│  S/A: down/up  OR  use Settings panel   │
-└─────────────────────────────────────────┘
-```
+The reverb can be enabled or disabled without changing the underlying instrument configuration.
 
 ---
 
-## 🔧 Customization
+## MIDI
 
-### Color Scheme
-Edit `Styles/style.css` CSS variables:
-```css
-:root {
-  --bg: #1a1410;              /* Dark wood background */
-  --gold: #c9952a;            /* Main accent */
-  --gold-light: #e8b84b;      /* Bright accent */
-  --text: #e8dcc8;            /* Main text */
-  --muted: #8a7a64;           /* Secondary text */
-  --accent: #c87941;          /* Highlights */
-}
-```
+Where supported by the browser, Web Harmonium can access MIDI input devices through the Web MIDI API.
 
-### Sound
-- Replace `Sounds/harmonium-trad-orig.wav` with different sample
-- Must be WAV format (mono or stereo)
-- Adjust `loopStart`/`loopEnd` in `sound_sys.js` for different loop points
-- Replace `Sounds/reverb.wav` with different IR
+The MIDI implementation handles:
 
-### Keyboard Mapping
-Modify `keyboardMap` object in `Scripts/sound_sys.js`:
-```javascript
-var keyboardMap = {
-  "e": 60,  // 'e' key → MIDI note C4
-  "r": 62,  // 'r' key → MIDI note D4
-  // ... etc
-};
-```
+- Note On
+- Note Off
+- Note On with zero velocity
+- MIDI CC 7 volume control
+
+The application can detect available MIDI input devices and bind MIDI messages to the harmonium audio engine.
+
+MIDI support depends on browser and operating-system support for the Web MIDI API.
 
 ---
 
-## 🐛 Troubleshooting
+## Local Storage
 
-| Issue | Solution |
-|-------|----------|
-| No sound on load | Click in browser window to resume AudioContext (autoplay policy) |
-| MIDI keyboard not detected | Click "Refresh MIDI Devices" button in settings |
-| Settings not saving | Check if localStorage is enabled; check console for errors |
-| Mobile keyboard misaligned | Rotate device or refresh page |
-| Reverb sounds distorted | Lower master volume in settings |
-| Service worker not caching | Open DevTools → Application → Service Workers → Unregister & reload |
+The application uses browser local storage for user preferences.
 
----
+Currently stored settings include:
 
-## 📝 Development Notes
+webharmonium.volume
+webharmonium.useReverb
+webharmonium.octave
+webharmonium.transpose
+webharmonium.stack
 
-### Keyboard Event Flow
-1. `keydown` event captured → `getKeyEl()` adds `.pressed` class
-2. If key in `keyboardMap` → call `noteOn(midi_note)`
-3. `keyup` event → remove `.pressed` class, call `noteOff()`
-4. Touch events replicate this flow for mobile
-
-### MIDI Event Handling
-- Listens on all connected input devices
-- `0x90 (144)`: Note On → `noteOn(note, velocity)`
-- `0x80 (128)`: Note Off → `noteOff(note)`
-- `0xB0 (176)`: CC7 (volume) → master volume
-
-### Responsive Breakpoints
-- **Desktop**: width > 600px
-- **Mobile**: width ≤ 600px
-- Black key positioning recalculated on resize/orientation change
+These values allow the instrument to restore its previous configuration when reopened.
 
 ---
 
-## 📄 License
+## Progressive Web App
 
-[Add your license here]
+The project includes a web app manifest and service worker.
+
+This allows supported browsers to treat Web Harmonium as an installable web application.
+
+The application remains entirely frontend-based.
 
 ---
 
-## 🙏 Attribution
+## Running the Project
 
-Inspired by traditional harmonium instruments of North East Asia. Built with modern web audio technologies.
+Web Harmonium is a static frontend application.
 
-**Enjoy your playing! 🎶**
+The project does not require:
+
+- a backend
+- a database
+- an API server
+- a build system
+- a frontend framework
+
+The files can be deployed directly to a static web host.
+
+The application should be served over HTTP or HTTPS because audio files and other assets are loaded by the browser at runtime.
+
+---
+
+## Custom Audio
+
+The default harmonium sample is:
+
+Sounds/harmonium-trad-orig.wav
+
+To use a different harmonium sample, replace the file while keeping the same path, or update the `sampleURL` value in:
+
+Scripts/sound_sys.js
+
+The sample uses a looped playback region configured by:
+
+var loopStart = 0.5;
+var loopEnd = 7.5;
+
+If a different sample is used, these values should be adjusted to match its loop points.
+
+---
+
+## Custom Reverb
+
+The default impulse response is:
+
+Sounds/reverb.wav
+
+It can be replaced with another compatible WAV impulse-response file.
+
+The file path is defined in `Scripts/sound_sys.js`.
+
+---
+
+## Browser Requirements
+
+Web Harmonium requires a modern browser with support for the APIs used by the application.
+
+| Technology | Purpose |
+| :--------- | :------ |
+| Web Audio API | Audio playback and processing |
+| Web MIDI API | MIDI input |
+| Web Storage API | Local settings |
+| Service Worker API | PWA functionality |
+
+MIDI availability varies between browsers and operating systems.
+
+---
+
+## Development Notes
+
+The project intentionally avoids unnecessary dependencies.
+
+The main application is implemented using browser-native technologies so that the instrument remains small, portable, and easy to deploy.
+
+When modifying the project:
+
+- Preserve the keyboard mapping.
+- Avoid unnecessary dependencies.
+- Keep audio interaction responsive.
+- Test multiple simultaneous notes.
+- Test transpose and octave changes together.
+- Test reverb switching.
+- Test MIDI input when available.
+- Test the application after clearing local storage.
+- Ensure audio assets remain accessible from their configured paths.
+
+---
+
+## Deployment
+
+Since the project is static, deployment consists of serving the project directory and its assets.
+
+Production:
+
+https://harmonium.xento.us.kg/
+
+No application server is required.
+
+---
+
+## License
+
+See [`LICENSE`](LICENSE) for the license applicable to this project.
+
+---
+
+## Author
+
+**XENTO**
+
+GitHub: https://github.com/thexento

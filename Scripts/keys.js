@@ -1,543 +1,503 @@
-// Keys.js
-/* ═══════════════════════════════════════════════════
-   MOBILE DETECTION
-═══════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════════
+   WEB HARMONIUM — AUDIO ENGINE & SYSTEM CORE (sound_sys.js)
+   Auto-Loading Sample Buffer · Instant Autoplay Resume · Zero Latency
+   ═══════════════════════════════════════════════════════════════════════════ */
 
-/* ═══════════════════════════════════════════════════
-   PORTRAIT LOCK
-═══════════════════════════════════════════════════ */
-function checkOrientation(){
-  var overlay = document.getElementById('portraitOverlay');
-  if(!overlay) return;
-  var isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-  if(!isTouch){ overlay.classList.remove('show'); return; }
-  var portrait = window.innerHeight > window.innerWidth;
-  overlay.classList.toggle('show', portrait);
-}
-window.addEventListener('resize', checkOrientation);
-window.addEventListener('orientationchange', function(){ setTimeout(checkOrientation, 150); });
-window.addEventListener('load', checkOrientation);
+var sampleURL = 'Sounds/harmonium-trad-orig.wav';
+var reverbURL = 'Sounds/reverb.wav';
 
-function isMobile(){return window.innerWidth<=600;}
+var AudioContext = window.AudioContext || window.webkitAudioContext;
+var context = null;
+var audioBuffer = null;
+var gainNode = null;
+var reverbNode = null;
+var useReverb = false;
 
-/* ═══════════════════════════════════════════════════
-   GLOBAL TOUCH SAFETY — resume context on first touch
-   and block contextmenu (prevents vibration on long-press)
-═══════════════════════════════════════════════════ */
-document.addEventListener('touchstart', function(){
-  if(typeof context !== 'undefined' && context && context.state === 'suspended'){
-    context.resume();
-  }
-}, {passive:true, once:false});
+// Active voice tracking: Maps note index -> array of active AudioBufferSourceNodes
+var activeVoices = {};
 
-// Block contextmenu on the whole page (long-press vibration source on Android)
-document.addEventListener('contextmenu', function(e){
-  e.preventDefault();
-  return false;
-});
-
-// Safety net: if a touchend fires outside a key element (finger slides off),
-// stop ALL currently playing OSK notes to prevent stuck sound loops
-document.addEventListener('touchend', function(e){
-  // Only run if there are active OSK keys
-  var anyActive = Object.keys(oskActiveKeys).some(function(k){ return oskActiveKeys[k]; });
-  if(!anyActive) return;
-  // For each touch that ended, check if it landed on a key element
-  // If not, release all stuck notes
-  var touchedEl = e.target;
-  var onKey = touchedEl && (
-    touchedEl.classList.contains('mob-wk') ||
-    touchedEl.classList.contains('mob-bk') ||
-    touchedEl.closest && (touchedEl.closest('.mob-wk') || touchedEl.closest('.mob-bk'))
-  );
-  if(!onKey){
-    Object.keys(oskActiveKeys).forEach(function(k){
-      if(oskActiveKeys[k]) oskKeyUp(k, document.querySelector('[data-key="'+k+'"]'));
-    });
-  }
-}, {passive:true});
-
-/* ═══════════════════════════════════════════════════
-   BLACK KEY LAYOUT
-   Desktop: absolute left positioning inside flex row
-   Mobile:  absolute top positioning inside horizontal layout
-═══════════════════════════════════════════════════ */
-var bkLayout=[
-  {id:'bk1',    after:0,  note:'C#'},
-  {id:'bk2',    after:1,  note:'D#'},
-  {id:'bk4',    after:3,  note:'E♭'},
-  {id:'bk5',    after:4,  note:'F#'},
-  {id:'bk7',    after:6,  note:'G#'},
-  {id:'bk8',    after:7,  note:'A#'},
-  {id:'bk9',    after:8,  note:'B♭'},
-  {id:'bkDash', after:10, note:'C#'},
-  {id:'bkEq',   after:11, note:'D#'},
-];
-
-function layoutKeys(){
-  var row=document.getElementById('keysRow');if(!row)return;
-  var whites=row.querySelectorAll('.wk');
-  var mobile=isMobile();
-
-  bkLayout.forEach(function(e){
-    var bk=document.getElementById(e.id);
-    var wk=whites[e.after];
-    if(!bk||!wk)return;
-
-    if(mobile){
-      var wkTop=wk.offsetLeft;
-      var wkW=wk.offsetWidth;
-      var bkH=bk.offsetHeight;
-      bk.style.left='';
-      bk.style.top=(wkTop + wkW/2 - bkH/2)+'px';
-    } else {
-      bk.style.top='';
-      bk.style.left=(wk.offsetLeft+wk.offsetWidth-bk.offsetWidth/2)+'px';
-    }
-  });
-}
-
-window.addEventListener('load',layoutKeys);
-window.addEventListener('resize',function(){layoutKeys();showOskIfMobile();buildOskKeyboard();});
-window.addEventListener('orientationchange',function(){setTimeout(function(){layoutKeys();showOskIfMobile();buildOskKeyboard();},300);});
-
-var _origInit=init;
-init=function(){
-  _origInit();
-  requestAnimationFrame(layoutKeys);
-  var _nhEnabled = localStorage.getItem('webharmonium.noteHelper') === 'true';
-  applyNoteHelperState(_nhEnabled);
-  rebuildHelperDropdown();
-  restoreSession();
-  buildOskKeyboard();
-  showOskIfMobile();
+var keyboardMap = {
+  "s": 53, "S": 53, "a": 54, "A": 54, "`": 55, "~": 55, "Tab": 55,
+  "1": 56, "q": 57, "Q": 57, "2": 58, "w": 59, "W": 59,
+  "e": 60, "E": 60, "4": 61, "r": 62, "R": 62, "5": 63,
+  "t": 64, "T": 64, "y": 65, "Y": 65, "7": 66, "u": 67, "U": 67,
+  "8": 68, "i": 69, "I": 69, "9": 70, "o": 71, "O": 71,
+  "p": 72, "P": 72, "-": 73, "[": 74, "=": 75, "+": 75,
+  "]": 76, "\\": 77, "'": 78, ";": 79
 };
 
-/* ═══════════════════════════════════════════════════
-   KEYBOARD VISUAL PRESS
-═══════════════════════════════════════════════════ */
-function getKeyEl(k){
-  return document.querySelector('.wk[key="'+k+'"]')||document.querySelector('.bk[key="'+k+'"]');
-}
-(function(){
-  var od=window.onkeydown,ou=window.onkeyup;
-  window.onkeydown=function(ev){
-    if(od)od(ev);
-    if(!ev.repeat){var el=getKeyEl(ev.key);if(el)el.classList.add('pressed');onNoteKeyDown(ev.key);}
-  };
-  window.onkeyup=function(ev){
-    if(ou)ou(ev);
-    var el=getKeyEl(ev.key);if(el)el.classList.remove('pressed');
-    onNoteKeyUp(ev.key);
-  };
-})();
+var swaramMap = {
+  "s": "Ṃ", "S": "Ṃ", "a": "Ṃ", "A": "Ṃ", "`": "P̣", "1": "Ḍ", "q": "Ḍ", "Q": "Ḍ", "2": "Ṇ",
+  "w": "Ṇ", "W": "Ṇ", "e": "S", "E": "S", "4": "R", "r": "R", "R": "R", "5": "G", "t": "G", "T": "G",
+  "y": "M", "Y": "M", "7": "M", "u": "P", "U": "P", "8": "D", "i": "D", "I": "D", "9": "N",
+  "o": "N", "O": "N", "p": "Ṡ", "P": "Ṡ", "-": "Ṙ", "[": "Ṙ", "=": "Ġ", "]": "Ġ", "\\": "Ṁ", "'": "Ṁ", ";": "Ṗ"
+};
 
-/* ═══════════════════════════════════════════════════
-   MOBILE ON-SCREEN KEYBOARD 
-   White keys: ` q w e r t y u i o p [ ] \
-   Black keys: 1 2 | 4 5 | 7 8 9 | - =
-═══════════════════════════════════════════════════ */
-var MOB_WHITE = [
-  {k:'`', lb:'`', nt:''},
-  {k:'q', lb:'q', nt:''},
-  {k:'w', lb:'w', nt:''},
-  {k:'e', lb:'e', nt:'C'},
-  {k:'r', lb:'r', nt:'D'},
-  {k:'t', lb:'t', nt:'E'},
-  {k:'y', lb:'y', nt:'F'},
-  {k:'u', lb:'u', nt:'G'},
-  {k:'i', lb:'i', nt:'A'},
-  {k:'o', lb:'o', nt:'B'},
-  {k:'p', lb:'p', nt:''},
-  {k:'[', lb:'[', nt:''},
-  {k:']', lb:']', nt:''},
-  {k:'\\', lb:'\\', nt:''},
-];
+var notation = "";
+var loopStart = 0.5;
+var loopEnd = 7.5;
+var loop = true;
 
-var MOB_BLACK = [
-  {after:0, k:'1', lb:'1'},
-  {after:1, k:'2', lb:'2'},
-  {after:3, k:'4', lb:'4'},
-  {after:4, k:'5', lb:'5'},
-  {after:6, k:'7', lb:'7'},
-  {after:7, k:'8', lb:'8'},
-  {after:8, k:'9', lb:'9'},
-  {after:10,k:'-', lb:'-'},
-  {after:11,k:'=', lb:'='},
-];
+var keyMap = new Array(128);
+var baseKeyMap = new Array(128);
+var middleC = 60;
+var rootKey = 62; // Default key D
+var currentOctave = 3;
+var stackCount = 0;
+var octaveMap = [-36, -24, -12, 0, 12, 24, 36];
+var baseKeyNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 
-var oskActiveKeys = {};
-
-function buildOskKeyboard(){
-  var wrap = document.getElementById('mobKeysWrap');
-  if(!wrap) return;
-  wrap.innerHTML = '';
-
-  var totalWhite = MOB_WHITE.length;
-
-  var stageW = wrap.parentElement ? wrap.parentElement.clientWidth : window.innerWidth - 40;
-  var wkW = Math.floor(stageW / totalWhite);
-  var wkH = Math.min(Math.floor(wkW * 3.2), 200);
-  var bkW = Math.floor(wkW * 0.62);
-  var bkH = Math.floor(wkH * 0.60);
-
-  wrap.style.height = wkH + 'px';
-
-  MOB_WHITE.forEach(function(def){
-    var el = document.createElement('div');
-    el.className = 'mob-wk';
-    el.dataset.key = def.k;
-    el.style.height = wkH + 'px';
-    el.style.width = wkW + 'px';
-    el.style.flex = 'none';
-    if(def.lb) el.innerHTML = '<span class="mob-kb">'+def.lb+'</span>'+(def.nt?'<span class="mob-nt">'+def.nt+'</span>':'');
-    attachOskTouch(el, def.k);
-    wrap.appendChild(el);
-  });
-
-  MOB_BLACK.forEach(function(def){
-    var el = document.createElement('div');
-    el.className = 'mob-bk';
-    el.dataset.key = def.k;
-    el.style.width  = bkW + 'px';
-    el.style.height = bkH + 'px';
-    var leftPx = (def.after + 1) * wkW - Math.floor(bkW / 2);
-    el.style.left = leftPx + 'px';
-    el.innerHTML = '<span class="mob-kb">'+def.lb+'</span>';
-    attachOskTouch(el, def.k);
-    wrap.appendChild(el);
-  });
+function getCharLength(str) {
+  return [...str].length;
 }
 
-function attachOskTouch(el, keyChar){
-  // contextmenu fires on long-press (causes vibration) — block it
-  el.addEventListener('contextmenu', function(e){ e.preventDefault(); e.stopPropagation(); return false; });
+/* ═══════════════════════════════════════════════════════════════════════════
+   AUDIO INITIALIZATION & RESUME
+   ═══════════════════════════════════════════════════════════════════════════ */
 
-  el.addEventListener('touchstart', function(e){
-    e.preventDefault();
-    e.stopPropagation();
-    oskKeyDown(keyChar, el);
-  },{passive:false});
-  el.addEventListener('touchend', function(e){
-    e.preventDefault();
-    e.stopPropagation();
-    oskKeyUp(keyChar, el);
-  },{passive:false});
-  el.addEventListener('touchcancel', function(e){
-    e.preventDefault();
-    e.stopPropagation();
-    oskKeyUp(keyChar, el);
-  },{passive:false});
-  el.addEventListener('mousedown',  function(e){ e.preventDefault(); oskKeyDown(keyChar, el); });
-  el.addEventListener('mouseup',    function(e){ oskKeyUp(keyChar, el); });
-  el.addEventListener('mouseleave', function(e){ if(oskActiveKeys[keyChar]) oskKeyUp(keyChar, el); });
-}
-
-function oskKeyDown(keyChar, btn){
-  if(oskActiveKeys[keyChar])return;
-  oskActiveKeys[keyChar]=true;
-  if(context&&context.state==='suspended')context.resume();
-  if(typeof keyboardMap!=='undefined'&&typeof keyboardMap[keyChar]!=='undefined'){
-    noteOn(keyboardMap[keyChar]);
+function initAudioContext() {
+  if (!context) {
+    context = new AudioContext();
+    gainNode = context.createGain();
+    
+    var volInput = document.getElementById("myRange");
+    var initialVol = volInput ? parseFloat(volInput.value) / 100 : 0.3;
+    gainNode.gain.value = initialVol;
+    gainNode.connect(context.destination);
   }
-  if(btn)btn.classList.add('oskpressed');
-  var mainKey=getKeyEl(keyChar);
-  if(mainKey)mainKey.classList.add('pressed');
-  onNoteKeyDown(keyChar);
-}
-
-function oskKeyUp(keyChar, btn){
-  if(!oskActiveKeys[keyChar])return;
-  oskActiveKeys[keyChar]=false;
-  if(typeof keyboardMap!=='undefined'&&typeof keyboardMap[keyChar]!=='undefined'){
-    noteOff(keyboardMap[keyChar]);
+  
+  if (context.state === 'suspended') {
+    context.resume();
   }
-  if(btn)btn.classList.remove('oskpressed');
-  var mainKey=getKeyEl(keyChar);
-  if(mainKey)mainKey.classList.remove('pressed');
-  onNoteKeyUp(keyChar);
 }
 
-function showOskIfMobile(){
-  var panel   = document.getElementById('mobileOskPanel');
-  var hint    = document.getElementById('landscapeHint');
-  var cabinet = document.querySelector('.cabinet');
-  if(!panel) return;
+function initKeymap() {
+  var transposeEl = document.getElementById('transpose');
+  var transpose = transposeEl ? parseInt(transposeEl.innerText) || 0 : 0;
+  var startKey = (middleC - 124) + (rootKey - middleC);
+  
+  for (var i = 0; i < 128; ++i) {
+    baseKeyMap[i] = startKey++;
+    keyMap[i] = baseKeyMap[i] + transpose;
+  }
+  
+  var mainScreen = document.getElementById('mainScreen');
+  if (mainScreen) {
+    mainScreen.style.display = 'block';
+  }
+}
 
-  var isTouch   = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-  var mobile    = isTouch && (window.innerWidth <= 900 || window.innerHeight <= 600);
-  var landscape = window.innerWidth > window.innerHeight;
+function load() {
+  initAudioContext();
 
-  if(mobile && !landscape){
-    panel.style.display = 'flex';
-    if(hint)    hint.style.display    = 'none';
-    if(cabinet) cabinet.style.display = 'none';
-    requestAnimationFrame(function(){ buildOskKeyboard(); });
-  } else if(mobile && landscape){
-    panel.style.display = 'none';
-    if(hint)    hint.style.display    = 'none';
-    if(cabinet) cabinet.style.display = '';
+  // Restore saved preferences
+  if (typeof Storage !== "undefined") {
+    var savedVol = localStorage.getItem("webharmonium.volume");
+    if (savedVol !== null) {
+      var range = document.getElementById("myRange");
+      if (range) range.value = savedVol;
+      onGainChange();
+    }
+
+    var savedReverb = localStorage.getItem("webharmonium.useReverb");
+    if (savedReverb !== null) {
+      useReverb = (savedReverb === "true");
+      var revCheck = document.getElementById("useReverb");
+      if (revCheck) revCheck.checked = useReverb;
+    }
+
+    var savedOctave = localStorage.getItem("webharmonium.octave");
+    if (savedOctave !== null) {
+      currentOctave = parseInt(savedOctave) || 3;
+    }
+    var octEl = document.getElementById('octave');
+    if (octEl) octEl.innerText = currentOctave;
+
+    var savedTranspose = localStorage.getItem("webharmonium.transpose");
+    if (savedTranspose !== null) {
+      var trVal = parseInt(savedTranspose) || 0;
+      var trEl = document.getElementById('transpose');
+      if (trEl) trEl.innerText = trVal;
+      
+      var rootEl = document.getElementById('rootNote');
+      if (rootEl) {
+        var normIndex = (trVal >= 0) ? (trVal % 12) : ((trVal % 12) + 12) % 12;
+        rootEl.innerText = baseKeyNames[normIndex];
+      }
+    }
+
+    var savedStack = localStorage.getItem("webharmonium.stack");
+    if (savedStack !== null) {
+      stackCount = parseInt(savedStack) || 0;
+    }
+    var stackEl = document.getElementById('stack');
+    if (stackEl) stackEl.innerText = stackCount;
+  }
+
+  initReverbNode();
+
+  // Fetch audio sample automatically
+  var req = new XMLHttpRequest();
+  req.open('GET', sampleURL, true);
+  req.responseType = 'arraybuffer';
+  req.addEventListener('load', function () {
+    context.decodeAudioData(
+      req.response,
+      function (buf) {
+        audioBuffer = buf;
+        initKeymap();
+      },
+      function (e) {
+        console.error('Failed to decode harmonium audio buffer:', e);
+      }
+    );
+  });
+  req.send();
+
+  requestMIDIAccess();
+}
+
+function initReverbNode() {
+  if (!context) return;
+  reverbNode = context.createConvolver();
+  var req = new XMLHttpRequest();
+  req.open('GET', reverbURL, true);
+  req.responseType = 'arraybuffer';
+  req.addEventListener('load', function () {
+    context.decodeAudioData(
+      req.response,
+      function (buf) {
+        reverbNode.buffer = buf;
+        reverbNode.connect(context.destination);
+        updateReverbState(useReverb);
+      },
+      function (e) {
+        console.warn('Reverb buffer load error:', e);
+      }
+    );
+  });
+  req.send();
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   NOTE SOUND PLAYBACK & POLYPHONIC VOICE MANAGEMENT
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+function createVoiceSource(keyIndex) {
+  if (!audioBuffer || !context) return null;
+
+  var source = context.createBufferSource();
+  source.buffer = audioBuffer;
+  source.loop = loop;
+  source.loopStart = loopStart;
+  source.loopEnd = loopEnd;
+
+  var pitchDetune = keyMap[keyIndex] * 100;
+  if (isFinite(pitchDetune)) {
+    source.detune.value = pitchDetune;
+  }
+
+  source.connect(gainNode);
+  return source;
+}
+
+function noteOn(note) {
+  initAudioContext();
+  if (!audioBuffer) return;
+
+  if (activeVoices[note] && activeVoices[note].length > 0) {
+    return;
+  }
+
+  activeVoices[note] = [];
+
+  // Primary note voice
+  var primaryIndex = note + octaveMap[currentOctave];
+  if (primaryIndex >= 0 && primaryIndex < keyMap.length) {
+    var src = createVoiceSource(primaryIndex);
+    if (src) {
+      src.start(0);
+      activeVoices[note].push(src);
+    }
+  }
+
+  // Additional stacked octave reeds
+  for (var c = 1; c <= stackCount; ++c) {
+    var stackedOct = currentOctave + c;
+    if (stackedOct >= 0 && stackedOct <= 6) {
+      var stackIndex = note + octaveMap[stackedOct];
+      if (stackIndex >= 0 && stackIndex < keyMap.length) {
+        var stackSrc = createVoiceSource(stackIndex);
+        if (stackSrc) {
+          stackSrc.start(0);
+          activeVoices[note].push(stackSrc);
+        }
+      }
+    }
+  }
+}
+
+function noteOff(note) {
+  if (!activeVoices[note] || activeVoices[note].length === 0) {
+    return;
+  }
+
+  var sourcesToStop = activeVoices[note];
+  delete activeVoices[note];
+
+  sourcesToStop.forEach(function (src) {
+    try {
+      src.stop(0);
+      src.disconnect();
+    } catch (e) {}
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   KEYBOARD INPUT HANDLERS
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+window.addEventListener('keydown', function (event) {
+  initAudioContext();
+  if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
+    return;
+  }
+  if (!event.repeat && typeof keyboardMap[event.key] !== "undefined") {
+    noteOn(keyboardMap[event.key]);
+  }
+});
+
+window.addEventListener('keyup', function (event) {
+  if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
+    return;
+  }
+  var key = event.key;
+  if (typeof keyboardMap[key] !== "undefined") {
+    noteOff(keyboardMap[key]);
+  }
+
+  if (key === "Backspace" && getCharLength(notation) > 0) {
+    notation = notation.substring(0, getCharLength(notation) - 1);
+  } else if (key === "Delete") {
+    notation = "";
+  } else if (key === "Enter") {
+    notation = "";
+  } else if (key === "Tab") {
+    notation += ",";
+  } else if (typeof swaramMap[key] !== "undefined") {
+    notation += swaramMap[key];
+  }
+});
+
+
+function play(el) {
+  initAudioContext();
+  if (!el) return;
+  var keyAttr = el.getAttribute('key');
+  var note = keyboardMap[keyAttr];
+  if (note === undefined) return;
+
+  el._playingNote = note;
+  noteOn(note);
+}
+
+function stop(el) {
+  if (!el) return;
+  var note = el._playingNote;
+  if (note === undefined) {
+    var keyAttr = el.getAttribute('key');
+    note = keyboardMap[keyAttr];
+  }
+  if (note !== undefined) {
+    el._playingNote = undefined;
+    noteOff(note);
+  }
+}
+
+
+function onGainChange() {
+  var range = document.getElementById("myRange");
+  if (!range) return;
+
+  var val = range.value;
+  var volText = document.getElementById('volumeLevel');
+  if (volText) volText.innerText = val + "%";
+
+  if (gainNode) {
+    gainNode.gain.value = parseFloat(val) / 100;
+  }
+
+  if (typeof Storage !== "undefined") {
+    localStorage.setItem("webharmonium.volume", val);
+  }
+}
+
+function updateReverbState(enabled) {
+  useReverb = enabled;
+  if (typeof Storage !== "undefined") {
+    localStorage.setItem("webharmonium.useReverb", useReverb ? "true" : "false");
+  }
+
+  if (!gainNode || !reverbNode) return;
+
+  if (useReverb) {
+    try { gainNode.connect(reverbNode); } catch (e) {}
   } else {
-    panel.style.display = 'none';
-    if(hint)    hint.style.display    = 'none';
-    if(cabinet) cabinet.style.display = '';
+    try { gainNode.disconnect(reverbNode); } catch (e) {}
   }
 }
 
-/* ═══════════════════════════════════════════════════
-   VOLUME / REVERB SYNC
-═══════════════════════════════════════════════════ */
-function syncVolume(v){
-  document.getElementById('myRange').value=v;document.getElementById('myRangeModal').value=v;
-  document.getElementById('volumeLevel').innerText=v+'%';document.getElementById('volumeLevelModal').innerText=v+'%';
-  if(typeof gainNode!=='undefined'&&gainNode!=null)gainNode.gain.value=v/100;
-  if(typeof Storage!=='undefined')localStorage.setItem('webharmonium.volume',v);
-}
-document.getElementById('myRange').addEventListener('input',function(){syncVolume(this.value);});
-function syncReverb(c){document.getElementById('useReverb').checked=c;document.getElementById('useReverbModal').checked=c;updateReverbState(c);}
-document.getElementById('useReverb').addEventListener('change',function(){syncReverb(this.checked);});
-
-/* ═══════════════════════════════════════════════════
-   SETTINGS MODAL
-═══════════════════════════════════════════════════ */
-function openSettings(){
-  document.getElementById('myRangeModal').value=document.getElementById('myRange').value;
-  document.getElementById('volumeLevelModal').innerText=document.getElementById('myRange').value+'%';
-  document.getElementById('useReverbModal').checked=document.getElementById('useReverb').checked;
-  renderSongList();
-  document.getElementById('settingsOverlay').classList.add('open');
-}
-function closeSettings(){document.getElementById('settingsOverlay').classList.remove('open');}
-document.getElementById('settingsBtn').addEventListener('click',openSettings);
-
-/* ═══════════════════════════════════════════════════
-   SESSION / COOKIE PERSISTENCE
-═══════════════════════════════════════════════════ */
-function setCookie(name,value,days){
-  var d=new Date();d.setTime(d.getTime()+(days*86400000));
-  document.cookie=name+'='+encodeURIComponent(value)+';expires='+d.toUTCString()+';path=/';
-}
-function getCookie(name){
-  var v=document.cookie.match('(^|;)\\s*'+name+'\\s*=\\s*([^;]+)');
-  return v?decodeURIComponent(v.pop()):null;
-}
-function saveSession(){
-  setCookie('wh_song',helperCurrentSong,1);
-  setCookie('wh_pos',helperCursorIndex,1);
-}
-function restoreSession(){
-  var s=getCookie('wh_song'),p=getCookie('wh_pos');
-  if(s!==null){
-    var sel=document.getElementById('helperSongSelect');
-    if(sel.querySelector('option[value="'+s+'"]')){sel.value=s;loadHelperSong(parseInt(s),false);}
+function shiftOctave(delta) {
+  if (currentOctave + delta >= 0 && currentOctave + delta <= 6) {
+    currentOctave += delta;
+    if (typeof Storage !== "undefined") {
+      localStorage.setItem("webharmonium.octave", currentOctave);
+    }
   }
-  if(p!==null&&helperTokens.length>0){
-    var pi=parseInt(p)||0;
-    helperCursorIndex=Math.min(pi,helperTokens.length-1);
-    renderHelperState();
+  var octEl = document.getElementById('octave');
+  if (octEl) octEl.innerText = currentOctave;
+}
+
+function changeStack(delta) {
+  stackCount += delta;
+  if (stackCount < 0) stackCount = 0;
+  else if (currentOctave + stackCount > 6) stackCount = 6 - currentOctave;
+
+  var stackEl = document.getElementById('stack');
+  if (stackEl) stackEl.innerText = stackCount;
+
+  if (typeof Storage !== "undefined") {
+    localStorage.setItem("webharmonium.stack", stackCount);
   }
 }
 
-/* ═══════════════════════════════════════════════════
-   NOTE HELPER
-═══════════════════════════════════════════════════ */
-var helperCollapsed=false;
-var helperCurrentSong='';
-var helperTokens=[];
-var helperCursorIndex=0;
-var heldKeys={};
+function shiftSemitone(st) {
+  var trEl = document.getElementById('transpose');
+  if (!trEl) return;
 
-function toggleHelper(){
-  helperCollapsed=!helperCollapsed;
-  var n=document.getElementById('helperNotes'),b=document.getElementById('helperToggleBtn');
-  n.classList.toggle('collapsed',helperCollapsed);b.textContent=helperCollapsed?'Show':'Hide';
-}
+  var cs = parseInt(trEl.innerText) || 0;
+  if (cs + st >= -11 && cs + st <= 11) {
+    cs += st;
+    trEl.innerText = cs;
 
-var KEY_SET=new Set(['s','a','`','1','q','2','w','e','4','r','5','t','y','7','u','8','i','9','o','p','-','[','=',']','\\',';','+']);
-function isNoteChar(c){return KEY_SET.has(c.toLowerCase());}
-
-function isAnnotation(tok){
-  if(/^\(.*\)$/.test(tok))return true;
-  for(var i=0;i<tok.length;i++){if(!isNoteChar(tok[i]))return true;}
-  return false;
-}
-
-function renderNotesInHelper(notesText){
-  var container=document.getElementById('helperNotes');
-  helperTokens=[];
-  if(!notesText){container.innerHTML='<div style="color:var(--muted);font-size:.78rem;font-style:italic;">No notes yet.</div>';return;}
-  var frag=document.createElement('div');frag.className='helper-lines';
-  notesText.split('\n').forEach(function(line){
-    if(!line.trim()){var sp=document.createElement('div');sp.style.height='7px';frag.appendChild(sp);return;}
-    var row=document.createElement('div');row.className='helper-line';
-    line.trim().split(/\s+/).forEach(function(tok){
-      if(!tok)return;
-      var anno=isAnnotation(tok);
-      var span=document.createElement('span');
-      span.className='note-token'+(anno?' annotation':'');
-      // Normalize + → = and ` alias for display token matching
-      var normTok = tok.replace(/\+/g,'=').replace(/~/g,'`');
-      span.textContent=tok;           // show original text
-      span.dataset.token=normTok.toLowerCase(); // match against normalized
-      if(!anno)helperTokens.push(span);
-      row.appendChild(span);
-    });
-    frag.appendChild(row);
-  });
-  container.innerHTML='';container.appendChild(frag);
-  helperCursorIndex=Math.min(helperCursorIndex,Math.max(0,helperTokens.length-1));
-  renderHelperState();
-}
-
-function renderHelperState(){
-  helperTokens.forEach(function(tok,i){
-    tok.classList.remove('played','next','lit');
-    if(i<helperCursorIndex)        tok.classList.add('played');
-    else if(i===helperCursorIndex)  tok.classList.add('next');
-  });
-  var cur=helperTokens[helperCursorIndex];
-  if(cur)cur.scrollIntoView({block:'nearest',inline:'nearest',behavior:'smooth'});
-}
-
-function resetHelperPos(){helperCursorIndex=0;heldKeys={};renderHelperState();saveSession();}
-
-/* ─── Key normalization ─────────────────────────────
-   + and = are the same physical key (= without shift)
-   Tab and ` are treated as the same note (both map to note 55)
-   ~ and ` are the same key (` without shift vs with)
-─────────────────────────────────────────────────── */
-function normalizeKey(key){
-  if(key === '+')   return '=';
-  if(key === 'Tab') return '`';
-  if(key === '~')   return '`';
-  return key;
-}
-
-function onNoteKeyDown(key){
-  key = normalizeKey(key);
-  if(heldKeys[key])return;
-  heldKeys[key]=true;
-  if(!helperTokens.length)return;
-  var cur=helperTokens[helperCursorIndex];
-  if(!cur)return;
-  var keyLow=key.toLowerCase();
-  var tokLow=cur.dataset.token||'';
-  if(cur._matchPos===undefined)cur._matchPos=0;
-  if(tokLow[cur._matchPos]!==keyLow)return;
-  cur._matchPos++;
-  if(cur._matchPos<tokLow.length){cur.classList.add('lit');return;}
-  cur._matchPos=0;
-  cur.classList.remove('next');cur.classList.add('lit');
-  helperCursorIndex++;
-  while(
-    helperCursorIndex<helperTokens.length &&
-    helperTokens[helperCursorIndex] &&
-    helperTokens[helperCursorIndex].classList.contains('annotation')
-  ){helperCursorIndex++;}
-  helperTokens.forEach(function(tok,i){
-    if(tok===cur)return;
-    tok.classList.remove('played','next','lit');
-    if(i<helperCursorIndex)        tok.classList.add('played');
-    else if(i===helperCursorIndex)  tok.classList.add('next');
-  });
-  var next=helperTokens[helperCursorIndex];
-  if(next)next.scrollIntoView({block:'nearest',inline:'nearest',behavior:'smooth'});
-  requestAnimationFrame(function(){requestAnimationFrame(function(){
-    if(cur){cur.classList.remove('lit');if(helperTokens.indexOf(cur)<helperCursorIndex)cur.classList.add('played');}
-  });});
-  saveSession();
-}
-
-function onNoteKeyUp(key){
-  key = normalizeKey(key);
-  heldKeys[key]=false;
-}
-
-function onSongSelect(idx){loadHelperSong(idx===''?null:parseInt(idx),true);}
-
-function loadHelperSong(idx,resetPos){
-  if(idx===null||idx===''){
-    document.getElementById('helperNotes').innerHTML='<div style="color:var(--muted);font-size:.78rem;font-style:italic;">Select a song above to see notes here.</div>';
-    helperTokens=[];helperCursorIndex=0;helperCurrentSong='';return;
+    var rootEl = document.getElementById('rootNote');
+    if (rootEl) {
+      var normIndex = (cs >= 0) ? (cs % 12) : ((cs % 12) + 12) % 12;
+      rootEl.innerText = baseKeyNames[normIndex];
+    }
   }
-  var songs=getSongs(),song=songs[idx];if(!song)return;
-  helperCurrentSong=idx;
-  if(resetPos)helperCursorIndex=0;
-  renderNotesInHelper(song.notes);
-  saveSession();
+
+  if (typeof Storage !== "undefined") {
+    localStorage.setItem("webharmonium.transpose", cs);
+  }
+
+  initKeymap();
 }
 
-function rebuildHelperDropdown(){
-  var sel=document.getElementById('helperSongSelect'),songs=getSongs(),prev=sel.value;
-  sel.innerHTML='<option value="">— select a song —</option>';
-  songs.forEach(function(song,i){var o=document.createElement('option');o.value=i;o.textContent=song.name||('Song '+(i+1));sel.appendChild(o);});
-  if(prev!==''&&songs[parseInt(prev)])sel.value=prev;
+
+
+var midiAccess = null;
+
+function requestMIDIAccess() {
+  var infoEl = document.getElementById('midiInputDevicesInfo');
+  try {
+    if (navigator.requestMIDIAccess) {
+      if (infoEl && infoEl.innerText.indexOf('Supported') === -1) {
+        infoEl.innerText = "MIDI Subsystem: Active";
+      }
+      navigator.requestMIDIAccess().then(onMIDISuccess, onMIDIFailure);
+    } else {
+      if (infoEl) infoEl.innerText = "MIDI Subsystem: Not supported in this browser";
+    }
+  } catch (err) {
+    if (infoEl) infoEl.innerText = "MIDI Subsystem Error: " + err;
+  }
 }
 
-/* ═══════════════════════════════════════════════════
-   SONG DATA
-═══════════════════════════════════════════════════ */
-function getSongs(){
-  var s=localStorage.getItem('webharmonium.songs');
-  if(s){try{return JSON.parse(s);}catch(e){}}
-  if(typeof HARMONIUM_SONGS!=='undefined')return HARMONIUM_SONGS;
-  return[];
+function onMIDISuccess(ma) {
+  midiAccess = ma;
+  updateMIDIDevicesList();
+  midiAccess.onstatechange = function () {
+    updateMIDIDevicesList();
+  };
 }
-function setSongs(arr){localStorage.setItem('webharmonium.songs',JSON.stringify(arr));}
 
-function renderSongList(){
-  var songs=getSongs(),list=document.getElementById('songList');
-  list.innerHTML='';songs.forEach(function(song,i){list.appendChild(buildSongItem(song,i));});
+function updateMIDIDevicesList() {
+  if (!midiAccess) return;
+  var selectEl = document.getElementById("midiInputDevices");
+  if (!selectEl) return;
+
+  selectEl.innerHTML = '';
+  var inputs = midiAccess.inputs.values();
+  var count = 0;
+
+  for (var input of inputs) {
+    var opt = document.createElement("option");
+    opt.value = input.id;
+    opt.text = (input.name || "MIDI Device") + (input.manufacturer ? " (" + input.manufacturer + ")" : "");
+    selectEl.add(opt);
+    input.onmidimessage = getMIDIMessage;
+    count++;
+  }
+
+  var infoEl = document.getElementById('midiInputDevicesInfo');
+  if (infoEl) {
+    infoEl.innerText = count > 0 ? "MIDI Devices Connected (" + count + ")" : "No MIDI keyboards detected";
+  }
 }
-function buildSongItem(song,i){
-  var div=document.createElement('div');div.className='song-item';
-  var head=document.createElement('div');head.className='song-item-head';
-  var ni=document.createElement('input');ni.className='song-item-name';ni.type='text';ni.placeholder='Song name…';ni.value=song.name||'';
-  var db=document.createElement('button');db.className='song-del-btn';db.innerHTML='✕';db.onclick=function(){deleteSongItem(i);};
-  head.appendChild(ni);head.appendChild(db);
-  var ta=document.createElement('textarea');ta.className='song-item-notes';ta.placeholder='Paste notes here…';ta.value=song.notes||'';
-  div.appendChild(head);div.appendChild(ta);return div;
+
+function onMIDIFailure(e) {
+  var infoEl = document.getElementById('midiInputDevicesInfo');
+  if (infoEl) infoEl.innerText = "MIDI Access Denied or Failed";
 }
-function addSongItem(){
-  var songs=getSongs();songs.push({name:'',notes:''});setSongs(songs);renderSongList();
-  var m=document.querySelector('.modal');m.scrollTop=m.scrollHeight;
+
+function getMIDIMessage(msg) {
+  var cmd = msg.data[0];
+  var note = msg.data[1];
+  var vel = (msg.data.length > 2) ? msg.data[2] : 0;
+
+  var selectEl = document.getElementById("midiInputDevices");
+  if (selectEl && selectEl.selectedIndex >= 0) {
+    var selectedId = selectEl.options[selectEl.selectedIndex].value;
+    if (msg.target.id !== selectedId) return;
+  }
+
+  switch (cmd) {
+    case 144: // Note On
+      if (vel > 0) noteOn(note);
+      else noteOff(note);
+      break;
+    case 128: // Note Off
+      noteOff(note);
+      break;
+    case 176: // CC Volume
+      if (note === 7) {
+        var slider = document.getElementById("myRange");
+        if (slider) {
+          slider.value = Math.round((100 * vel) / 127);
+          onGainChange();
+        }
+      }
+      break;
+  }
 }
-function deleteSongItem(idx){var songs=getSongs();songs.splice(idx,1);setSongs(songs);renderSongList();rebuildHelperDropdown();}
-function saveSongs(){
-  var items=document.querySelectorAll('#songList .song-item'),songs=[];
-  items.forEach(function(item){
-    var name=item.querySelector('.song-item-name').value.trim(),notes=item.querySelector('.song-item-notes').value;
-    if(name||notes)songs.push({name:name,notes:notes});
+
+
+
+window.addEventListener('DOMContentLoaded', function () {
+  load();
+});
+
+// Resume audio on first user click, touch, or keydown
+['click', 'touchstart', 'pointerdown', 'keydown'].forEach(function (evt) {
+  window.addEventListener(evt, function () {
+    initAudioContext();
+  }, { passive: true });
+});
+
+/* Service Worker Registration */
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", function () {
+    navigator.serviceWorker.register("Scripts/serviceworker.js").catch(function (e) {});
   });
-  setSongs(songs);rebuildHelperDropdown();
-  if(helperCurrentSong!==''&&songs[helperCurrentSong])loadHelperSong(parseInt(helperCurrentSong),false);
-  var btn=document.querySelector('.songs-save-btn'),orig=btn.textContent;
-  btn.textContent='✓ Saved!';btn.style.background='linear-gradient(135deg,#3a6a2a,#224a18)';
-  setTimeout(function(){btn.textContent=orig;btn.style.background='';},1800);
 }
-function collectSongsFromForm(){
-  var items=document.querySelectorAll('#songList .song-item'),songs=[];
-  items.forEach(function(item){
-    var name=item.querySelector('.song-item-name').value.trim(),notes=item.querySelector('.song-item-notes').value;
-    if(name||notes)songs.push({name:name,notes:notes});
-  });return songs;
-}
-function exportConfigJS(){
-  downloadFile('Notes/keynotes.js','// Keynotes.js — Note helpers for Web Harmonium\nvar HARMONIUM_SONGS = '+JSON.stringify(collectSongsFromForm(),null,2)+';\n','text/javascript');
-}
-function exportConfigJSON(){downloadFile('harmonium-songs.json',JSON.stringify(collectSongsFromForm(),null,2),'application/json');}
-function downloadFile(name,content,mime){
-  var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type:mime}));a.download=name;document.body.appendChild(a);a.click();document.body.removeChild(a);
-}
-
-/* ═══════════════════════════════════════════════════
-   NOTE HELPER TOGGLE
-═══════════════════════════════════════════════════ */
-function applyNoteHelperState(enabled){
-  localStorage.setItem('webharmonium.noteHelper', enabled ? 'true' : 'false');
-  var panel = document.getElementById('noteHelper');
-  if(panel) panel.style.display = enabled ? 'block' : 'none';
-  var tog = document.getElementById('noteHelperToggle');
-  if(tog) tog.checked = enabled;
-}
-function setNoteHelperEnabled(enabled){ applyNoteHelperState(enabled); }
