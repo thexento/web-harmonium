@@ -1,220 +1,200 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <meta property="og:title" content="Web Harmonium" />
-  <meta property="og:type" content="website" />
-  <meta property="og:description" content="Play Harmonium using your normal computer keyboard or attach a MIDI keyboard to play" />
-  <meta property="og:url" content="https://webharmonium.xento.xyz/" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+  <title>Web Harmonium</title>
+  
   <link rel="manifest" href="Configs/manifest.json">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Lato:ital,wght@0,300;0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Mono:wght@500;700&display=swap" rel="stylesheet">
+  
   <link rel="icon" type="image/png" href="icons/favicon.png">
   <link rel="apple-touch-icon" href="icons/favicon.png">
-  <script src="Notes/Keynotes.js"></script>
+  
+  <link rel="stylesheet" href="Styles/style.css">
+  
   <script src="Scripts/sound_sys.js"></script>
-  <title>Web Harmonium</title>
-<link rel="stylesheet" href="Styles/style.css">
 </head>
 <body>
 
-<!-- Portrait lock overlay -->
-<div id="portraitOverlay">
-  <div class="portrait-icon">📱</div>
-  <div class="portrait-title">Rotate Your Device</div>
-  <div class="portrait-sub">Web Harmonium works best in landscape mode.<br>Please rotate your phone sideways.</div>
-</div>
-
-<!--  Navbar -->
-<nav class="navbar">
-  <div class="brand"><div class="brand-pip"></div>Web Harmonium</div>
-  <div class="nav-controls">
-    <div class="nav-group">
-      <label>Vol</label>
-      <input type="range" min="1" max="100" value="30" class="nav-range" id="myRange" oninput="onGainChange()" onchange="onGainChange()">
-      <span id="volumeLevel">30%</span>
-    </div>
-    <div class="nav-group">
-      <label>Reverb</label>
-      <label class="sw"><input id="useReverb" type="checkbox" onclick="updateReverbState(this.checked)"><span class="sw-track"></span></label>
-    </div>
-    <button class="nav-btn" id="settingsBtn">⚙ Settings</button>
-  </div>
-</nav>
-
-<div class="page">
-
-  <!-- Load screen -->
-  <div id="loadScreen">
-    <div class="load-title">Web Harmonium</div>
-    <div class="load-sub">Traditional reed organ · keyboard or MIDI</div>
-    <button class="load-btn" onclick="document.getElementById('loadScreen').style.display='none'; load();">Load Module</button>
-  </div>
-
-  <!-- Note helper -->
-  <div id="noteHelper">
-    <div class="helper-bar">
-      <div class="helper-head">
-        <span class="helper-head-label">♩ Notes</span>
-        <select class="helper-song-select" id="helperSongSelect" onchange="onSongSelect(this.value)">
-          <option value="">— select a song —</option>
-        </select>
-        <div class="helper-btns">
-          <button class="helper-reset-btn" onclick="resetHelperPos()">↺</button>
-          <button class="helper-toggle-btn" id="helperToggleBtn" onclick="toggleHelper()">Hide</button>
-        </div>
-      </div>
-      <div class="helper-notes" id="helperNotes">
-        <div style="color:var(--muted);font-size:.78rem;font-style:italic;">Select a song above to see notes here.</div>
-      </div>
+  <!-- Orientation Overlay for Mobile -->
+  <div id="portraitOverlay">
+    <div class="portrait-content">
+      <div class="portrait-icon">📱</div>
+      <div class="portrait-title">Rotate Your Device</div>
+      <div class="portrait-sub">Web Harmonium works best in landscape mode. Please turn your phone sideways.</div>
     </div>
   </div>
 
-  <!-- Instrument -->
-  <div id="mainScreen">
-    <div class="cabinet">
-      <div class="nameplate">
-        <h1>HARMONIUM</h1>
-        <div class="nameplate-rule"><hr><span>Traditional Reed Organ</span><hr></div>
+  <!-- Navbar Header -->
+  <header class="navbar">
+    <div class="brand">
+      <span class="brand-text">Web Harmonium</span>
+    </div>
+
+    <div class="nav-controls">
+      <div class="nav-group">
+        <label for="myRange">Vol</label>
+        <input type="range" min="1" max="100" value="30" class="nav-range" id="myRange" oninput="onGainChange()" onchange="onGainChange()">
+        <span id="volumeLevel">30%</span>
       </div>
-      <div class="stage">
-        <!-- keys-outer wraps keys-row for horizontal scroll on mobile -->
-        <div class="keys-outer">
-          <div class="keys-row" id="keysRow">
-            <div class="wk" key="`"  onmousedown="play(this)" onmouseup="stop(this)" onmouseleave="stop(this)" ontouchstart="play(this)" ontouchend="stop(this)" ontouchcancel="stop(this)" oncontextmenu="return false"><span class="kb">`</span></div>
-            <div class="wk" key="q"  onmousedown="play(this)" onmouseup="stop(this)" onmouseleave="stop(this)" ontouchstart="play(this)" ontouchend="stop(this)" ontouchcancel="stop(this)" oncontextmenu="return false"><span class="kb">q</span></div>
-            <div class="wk" key="w"  onmousedown="play(this)" onmouseup="stop(this)" onmouseleave="stop(this)" ontouchstart="play(this)" ontouchend="stop(this)" ontouchcancel="stop(this)" oncontextmenu="return false"><span class="kb">w</span></div>
-            <div class="wk" key="e"  onmousedown="play(this)" onmouseup="stop(this)" onmouseleave="stop(this)" ontouchstart="play(this)" ontouchend="stop(this)" ontouchcancel="stop(this)" oncontextmenu="return false"><span class="kb">e</span><span class="nt">C</span></div>
-            <div class="wk" key="r"  onmousedown="play(this)" onmouseup="stop(this)" onmouseleave="stop(this)" ontouchstart="play(this)" ontouchend="stop(this)" ontouchcancel="stop(this)" oncontextmenu="return false"><span class="kb">r</span><span class="nt">D</span></div>
-            <div class="wk" key="t"  onmousedown="play(this)" onmouseup="stop(this)" onmouseleave="stop(this)" ontouchstart="play(this)" ontouchend="stop(this)" ontouchcancel="stop(this)" oncontextmenu="return false"><span class="kb">t</span><span class="nt">E</span></div>
-            <div class="wk" key="y"  onmousedown="play(this)" onmouseup="stop(this)" onmouseleave="stop(this)" ontouchstart="play(this)" ontouchend="stop(this)" ontouchcancel="stop(this)" oncontextmenu="return false"><span class="kb">y</span><span class="nt">F</span></div>
-            <div class="wk" key="u"  onmousedown="play(this)" onmouseup="stop(this)" onmouseleave="stop(this)" ontouchstart="play(this)" ontouchend="stop(this)" ontouchcancel="stop(this)" oncontextmenu="return false"><span class="kb">u</span><span class="nt">G</span></div>
-            <div class="wk" key="i"  onmousedown="play(this)" onmouseup="stop(this)" onmouseleave="stop(this)" ontouchstart="play(this)" ontouchend="stop(this)" ontouchcancel="stop(this)" oncontextmenu="return false"><span class="kb">i</span><span class="nt">A</span></div>
-            <div class="wk" key="o"  onmousedown="play(this)" onmouseup="stop(this)" onmouseleave="stop(this)" ontouchstart="play(this)" ontouchend="stop(this)" ontouchcancel="stop(this)" oncontextmenu="return false"><span class="kb">o</span><span class="nt">B</span></div>
-            <div class="wk" key="p"  onmousedown="play(this)" onmouseup="stop(this)" onmouseleave="stop(this)" ontouchstart="play(this)" ontouchend="stop(this)" ontouchcancel="stop(this)" oncontextmenu="return false"><span class="kb">p</span></div>
-            <div class="wk" key="["  onmousedown="play(this)" onmouseup="stop(this)" onmouseleave="stop(this)" ontouchstart="play(this)" ontouchend="stop(this)" ontouchcancel="stop(this)" oncontextmenu="return false"><span class="kb">[</span></div>
-            <div class="wk" key="]"  onmousedown="play(this)" onmouseup="stop(this)" onmouseleave="stop(this)" ontouchstart="play(this)" ontouchend="stop(this)" ontouchcancel="stop(this)" oncontextmenu="return false"><span class="kb">]</span></div>
-            <div class="wk" key="\"  onmousedown="play(this)" onmouseup="stop(this)" onmouseleave="stop(this)" ontouchstart="play(this)" ontouchend="stop(this)" ontouchcancel="stop(this)" oncontextmenu="return false"><span class="kb">\</span></div>
-            <div class="bk" id="bk1"    key="1" onmousedown="play(this)" onmouseup="stop(this)" onmouseleave="stop(this)" ontouchstart="play(this)" ontouchend="stop(this)" ontouchcancel="stop(this)" oncontextmenu="return false"><span class="kb">1</span></div>
-            <div class="bk" id="bk2"    key="2" onmousedown="play(this)" onmouseup="stop(this)" onmouseleave="stop(this)" ontouchstart="play(this)" ontouchend="stop(this)" ontouchcancel="stop(this)" oncontextmenu="return false"><span class="kb">2</span></div>
-            <div class="bk" id="bk4"    key="4" onmousedown="play(this)" onmouseup="stop(this)" onmouseleave="stop(this)" ontouchstart="play(this)" ontouchend="stop(this)" ontouchcancel="stop(this)" oncontextmenu="return false"><span class="kb">4</span></div>
-            <div class="bk" id="bk5"    key="5" onmousedown="play(this)" onmouseup="stop(this)" onmouseleave="stop(this)" ontouchstart="play(this)" ontouchend="stop(this)" ontouchcancel="stop(this)" oncontextmenu="return false"><span class="kb">5</span></div>
-            <div class="bk" id="bk7"    key="7" onmousedown="play(this)" onmouseup="stop(this)" onmouseleave="stop(this)" ontouchstart="play(this)" ontouchend="stop(this)" ontouchcancel="stop(this)" oncontextmenu="return false"><span class="kb">7</span></div>
-            <div class="bk" id="bk8"    key="8" onmousedown="play(this)" onmouseup="stop(this)" onmouseleave="stop(this)" ontouchstart="play(this)" ontouchend="stop(this)" ontouchcancel="stop(this)" oncontextmenu="return false"><span class="kb">8</span></div>
-            <div class="bk" id="bk9"    key="9" onmousedown="play(this)" onmouseup="stop(this)" onmouseleave="stop(this)" ontouchstart="play(this)" ontouchend="stop(this)" ontouchcancel="stop(this)" oncontextmenu="return false"><span class="kb">9</span></div>
-            <div class="bk" id="bkDash" key="-" onmousedown="play(this)" onmouseup="stop(this)" onmouseleave="stop(this)" ontouchstart="play(this)" ontouchend="stop(this)" ontouchcancel="stop(this)" oncontextmenu="return false"><span class="kb">-</span></div>
-            <div class="bk" id="bkEq"   key="=" onmousedown="play(this)" onmouseup="stop(this)" onmouseleave="stop(this)" ontouchstart="play(this)" ontouchend="stop(this)" ontouchcancel="stop(this)" oncontextmenu="return false"><span class="kb">=</span></div>
+
+      <div class="nav-group">
+        <span>Reverb</span>
+        <label class="sw">
+          <input id="useReverb" type="checkbox" onclick="updateReverbState(this.checked)">
+          <span class="sw-track"></span>
+        </label>
+      </div>
+
+      <button class="nav-btn" id="settingsBtn" onclick="openSettings()">Settings</button>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="page">
+
+    <!-- Instrument Screen -->
+    <div id="mainScreen">
+      <div class="cabinet">
+        <div class="stage">
+          <div class="keys-outer">
+            <div class="keys-row" id="keysRow">
+              <!-- White Keys -->
+              <div class="wk" key="`"  onmousedown="play(this)" onmouseup="stop(this)" onmouseleave="stop(this)" ontouchstart="play(this)" ontouchend="stop(this)" ontouchcancel="stop(this)" oncontextmenu="return false"><span class="kb">`</span></div>
+              <div class="wk" key="q"  onmousedown="play(this)" onmouseup="stop(this)" onmouseleave="stop(this)" ontouchstart="play(this)" ontouchend="stop(this)" ontouchcancel="stop(this)" oncontextmenu="return false"><span class="kb">q</span></div>
+              <div class="wk" key="w"  onmousedown="play(this)" onmouseup="stop(this)" onmouseleave="stop(this)" ontouchstart="play(this)" ontouchend="stop(this)" ontouchcancel="stop(this)" oncontextmenu="return false"><span class="kb">w</span></div>
+              <div class="wk" key="e"  onmousedown="play(this)" onmouseup="stop(this)" onmouseleave="stop(this)" ontouchstart="play(this)" ontouchend="stop(this)" ontouchcancel="stop(this)" oncontextmenu="return false"><span class="kb">e</span><span class="nt">C</span></div>
+              <div class="wk" key="r"  onmousedown="play(this)" onmouseup="stop(this)" onmouseleave="stop(this)" ontouchstart="play(this)" ontouchend="stop(this)" ontouchcancel="stop(this)" oncontextmenu="return false"><span class="kb">r</span><span class="nt">D</span></div>
+              <div class="wk" key="t"  onmousedown="play(this)" onmouseup="stop(this)" onmouseleave="stop(this)" ontouchstart="play(this)" ontouchend="stop(this)" ontouchcancel="stop(this)" oncontextmenu="return false"><span class="kb">t</span><span class="nt">E</span></div>
+              <div class="wk" key="y"  onmousedown="play(this)" onmouseup="stop(this)" onmouseleave="stop(this)" ontouchstart="play(this)" ontouchend="stop(this)" ontouchcancel="stop(this)" oncontextmenu="return false"><span class="kb">y</span><span class="nt">F</span></div>
+              <div class="wk" key="u"  onmousedown="play(this)" onmouseup="stop(this)" onmouseleave="stop(this)" ontouchstart="play(this)" ontouchend="stop(this)" ontouchcancel="stop(this)" oncontextmenu="return false"><span class="kb">u</span><span class="nt">G</span></div>
+              <div class="wk" key="i"  onmousedown="play(this)" onmouseup="stop(this)" onmouseleave="stop(this)" ontouchstart="play(this)" ontouchend="stop(this)" ontouchcancel="stop(this)" oncontextmenu="return false"><span class="kb">i</span><span class="nt">A</span></div>
+              <div class="wk" key="o"  onmousedown="play(this)" onmouseup="stop(this)" onmouseleave="stop(this)" ontouchstart="play(this)" ontouchend="stop(this)" ontouchcancel="stop(this)" oncontextmenu="return false"><span class="kb">o</span><span class="nt">B</span></div>
+              <div class="wk" key="p"  onmousedown="play(this)" onmouseup="stop(this)" onmouseleave="stop(this)" ontouchstart="play(this)" ontouchend="stop(this)" ontouchcancel="stop(this)" oncontextmenu="return false"><span class="kb">p</span></div>
+              <div class="wk" key="["  onmousedown="play(this)" onmouseup="stop(this)" onmouseleave="stop(this)" ontouchstart="play(this)" ontouchend="stop(this)" ontouchcancel="stop(this)" oncontextmenu="return false"><span class="kb">[</span></div>
+              <div class="wk" key="]"  onmousedown="play(this)" onmouseup="stop(this)" onmouseleave="stop(this)" ontouchstart="play(this)" ontouchend="stop(this)" ontouchcancel="stop(this)" oncontextmenu="return false"><span class="kb">]</span></div>
+              <div class="wk" key="\"  onmousedown="play(this)" onmouseup="stop(this)" onmouseleave="stop(this)" ontouchstart="play(this)" ontouchend="stop(this)" ontouchcancel="stop(this)" oncontextmenu="return false"><span class="kb">\</span></div>
+
+              <!-- Black Keys -->
+              <div class="bk" id="bk1"    key="1" onmousedown="play(this)" onmouseup="stop(this)" onmouseleave="stop(this)" ontouchstart="play(this)" ontouchend="stop(this)" ontouchcancel="stop(this)" oncontextmenu="return false"><span class="kb">1</span></div>
+              <div class="bk" id="bk2"    key="2" onmousedown="play(this)" onmouseup="stop(this)" onmouseleave="stop(this)" ontouchstart="play(this)" ontouchend="stop(this)" ontouchcancel="stop(this)" oncontextmenu="return false"><span class="kb">2</span></div>
+              <div class="bk" id="bk4"    key="4" onmousedown="play(this)" onmouseup="stop(this)" onmouseleave="stop(this)" ontouchstart="play(this)" ontouchend="stop(this)" ontouchcancel="stop(this)" oncontextmenu="return false"><span class="kb">4</span></div>
+              <div class="bk" id="bk5"    key="5" onmousedown="play(this)" onmouseup="stop(this)" onmouseleave="stop(this)" ontouchstart="play(this)" ontouchend="stop(this)" ontouchcancel="stop(this)" oncontextmenu="return false"><span class="kb">5</span></div>
+              <div class="bk" id="bk7"    key="7" onmousedown="play(this)" onmouseup="stop(this)" onmouseleave="stop(this)" ontouchstart="play(this)" ontouchend="stop(this)" ontouchcancel="stop(this)" oncontextmenu="return false"><span class="kb">7</span></div>
+              <div class="bk" id="bk8"    key="8" onmousedown="play(this)" onmouseup="stop(this)" onmouseleave="stop(this)" ontouchstart="play(this)" ontouchend="stop(this)" ontouchcancel="stop(this)" oncontextmenu="return false"><span class="kb">8</span></div>
+              <div class="bk" id="bk9"    key="9" onmousedown="play(this)" onmouseup="stop(this)" onmouseleave="stop(this)" ontouchstart="play(this)" ontouchend="stop(this)" ontouchcancel="stop(this)" oncontextmenu="return false"><span class="kb">9</span></div>
+              <div class="bk" id="bkDash" key="-" onmousedown="play(this)" onmouseup="stop(this)" onmouseleave="stop(this)" ontouchstart="play(this)" ontouchend="stop(this)" ontouchcancel="stop(this)" oncontextmenu="return false"><span class="kb">-</span></div>
+              <div class="bk" id="bkEq"   key="=" onmousedown="play(this)" onmouseup="stop(this)" onmouseleave="stop(this)" ontouchstart="play(this)" ontouchend="stop(this)" ontouchcancel="stop(this)" oncontextmenu="return false"><span class="kb">=</span></div>
+            </div>
           </div>
         </div>
       </div>
-      <div class="key-legend">
-        <span class="kchip">White: <strong>` Q W E R T Y U I O P [ ] \</strong></span>
-        <span class="kdot">●</span>
-        <span class="kchip">Black: <strong>1 2 &nbsp; 4 5 &nbsp; 7 8 9 &nbsp; - =</strong></span>
-      </div>
-    </div>
-  </div>
-
-</div>
-
-  <!-- Mobile OSK — proper piano keyboard in a harmonium cabinet (portrait only) -->
-  <div id="mobileOskPanel">
-    <div class="mob-cabinet">
-      <div class="mob-nameplate">
-        <h2>HARMONIUM</h2>
-        <div class="mob-nameplate-rule"><hr><span>Touch to play</span><hr></div>
-      </div>
-      <div class="mob-stage">
-        <div class="mob-keys-wrap" id="mobKeysWrap"><!-- built by JS --></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Landscape hint -->
-  <div id="landscapeHint">← Swipe the piano keys · Landscape mode →</div>
-
-<!-- Settings Modal -->
-<div class="overlay" id="settingsOverlay" onclick="if(event.target===this)closeSettings()">
-  <div class="modal">
-    <div class="modal-title">⚙ Settings</div>
-
-    <!-- Volume (always visible — also shown on mobile since navbar hides it) -->
-    <div class="modal-section">
-      <div class="modal-section-title">Volume</div>
-      <input type="range" min="1" max="100" value="30" class="modal-range" id="myRangeModal" oninput="syncVolume(this.value)" onchange="syncVolume(this.value)">
-      <div style="text-align:right;font-size:.72rem;color:var(--gold);font-weight:700;margin-top:4px;" id="volumeLevelModal">30%</div>
     </div>
 
-    <hr class="modal-divider">
-
-    <div class="modal-section">
-      <div class="modal-section-title">Effects</div>
-      <div class="modal-toggle-row">
-        <span class="mctrl-label">Reverb</span>
-        <label class="sw"><input id="useReverbModal" type="checkbox" onclick="syncReverb(this.checked)"><span class="sw-track"></span></label>
-      </div>
-      <div class="modal-toggle-row">
-        <span class="mctrl-label">Note Helper</span>
-        <label class="sw"><input id="noteHelperToggle" type="checkbox" onclick="setNoteHelperEnabled(this.checked)"><span class="sw-track"></span></label>
-      </div>
-    </div>
-
-    <hr class="modal-divider">
-
-    <div class="modal-section">
-      <div class="modal-section-title">Tuning &amp; Register</div>
-      <div class="mctrl-row">
-        <span class="mctrl-label">Transpose</span>
-        <div class="mctrl-right">
-          <button class="mcbtn" onclick="shiftSemitone(-1)">−</button>
-          <div><div class="mctrl-val"><span id="transpose">0</span></div><div class="mctrl-sub"><span id="rootNote">D</span></div></div>
-          <button class="mcbtn" onclick="shiftSemitone(1)">+</button>
-        </div>
-      </div>
-      <div class="mctrl-row">
-        <span class="mctrl-label">Octave</span>
-        <div class="mctrl-right">
-          <button class="mcbtn" onclick="shiftOctave(-1)">−</button>
-          <div><div class="mctrl-val" id="octave">3</div><div class="mctrl-sub">register</div></div>
-          <button class="mcbtn" onclick="shiftOctave(1)">+</button>
-        </div>
-      </div>
-      <div class="mctrl-row">
-        <span class="mctrl-label">Reeds</span>
-        <div class="mctrl-right">
-          <button class="mcbtn" onclick="changeStack(-1)">−</button>
-          <div><div class="mctrl-val" id="stack">0</div><div class="mctrl-sub">additional</div></div>
-          <button class="mcbtn" onclick="changeStack(1)">+</button>
+    <!-- Mobile OSK Panel -->
+    <div id="mobileOskPanel">
+      <div class="mob-cabinet">
+        <div class="mob-stage">
+          <div class="mob-keys-wrap" id="mobKeysWrap"></div>
         </div>
       </div>
     </div>
 
-    <hr class="modal-divider">
+    <div id="landscapeHint">Landscape view available · Touch keys to play</div>
 
-    <div class="modal-section">
-      <div class="modal-section-title">MIDI Keyboard</div>
-      <div class="midi-status" id="midiInputDevicesInfo">MIDI Keyboard</div>
-      <select id="midiInputDevices" class="midi-sel"></select>
-      <button class="midi-ref" onclick="requestMIDIAccess()">⟳ Refresh MIDI Devices</button>
-    </div>
+  </main>
 
-    <hr class="modal-divider">
-
-    <div class="modal-section">
-      <div class="modal-section-title">♩ Note Helpers</div>
-      <div class="song-list" id="songList"></div>
-      <button class="song-add-btn" onclick="addSongItem()">+ Add Song</button>
-      <button class="songs-save-btn" onclick="saveSongs()">💾 Save to Session</button>
-      <div class="songs-export-row">
-        <button class="songs-export-btn" onclick="exportConfigJS()">⬇ Export config.js</button>
-        <button class="songs-export-btn" onclick="exportConfigJSON()">⬇ Export JSON</button>
+  <!-- Settings Modal -->
+  <div class="overlay" id="settingsOverlay" onclick="if(event.target===this)closeSettings()">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">Settings</span>
+        <button class="modal-x-btn" onclick="closeSettings()">✕</button>
       </div>
-      <div style="margin-top:7px;font-size:.66rem;color:var(--muted);line-height:1.6;">Songs saved here persist in your browser. Export config.js to make them permanent.</div>
-    </div>
 
-    <button class="modal-close" onclick="closeSettings()">Done</button>
+      <div class="modal-body">
+        
+        <div class="modal-section">
+          <div class="modal-section-title">Master Volume</div>
+          <input type="range" min="1" max="100" value="30" class="modal-range" id="myRangeModal" oninput="syncVolume(this.value)" onchange="syncVolume(this.value)">
+          <div id="volumeLevelModal">30%</div>
+        </div>
+
+        <hr class="modal-divider">
+
+        <div class="modal-section">
+          <div class="modal-section-title">Effects</div>
+          <div class="modal-toggle-row">
+            <span class="mctrl-label">Reverb</span>
+            <label class="sw">
+              <input id="useReverbModal" type="checkbox" onclick="syncReverb(this.checked)">
+              <span class="sw-track"></span>
+            </label>
+          </div>
+        </div>
+
+        <hr class="modal-divider">
+
+        <div class="modal-section">
+          <div class="modal-section-title">Tuning &amp; Registers</div>
+          
+          <div class="mctrl-row">
+            <span class="mctrl-label">Transpose</span>
+            <div class="mctrl-right">
+              <button class="mcbtn" onclick="shiftSemitone(-1)">−</button>
+              <div class="mctrl-box">
+                <div class="mctrl-val"><span id="transpose">0</span></div>
+                <div class="mctrl-sub"><span id="rootNote">D</span></div>
+              </div>
+              <button class="mcbtn" onclick="shiftSemitone(1)">+</button>
+            </div>
+          </div>
+
+          <div class="mctrl-row">
+            <span class="mctrl-label">Octave</span>
+            <div class="mctrl-right">
+              <button class="mcbtn" onclick="shiftOctave(-1)">−</button>
+              <div class="mctrl-box">
+                <div class="mctrl-val" id="octave">3</div>
+                <div class="mctrl-sub">register</div>
+              </div>
+              <button class="mcbtn" onclick="shiftOctave(1)">+</button>
+            </div>
+          </div>
+
+          <div class="mctrl-row">
+            <span class="mctrl-label">Reed Stacking</span>
+            <div class="mctrl-right">
+              <button class="mcbtn" onclick="changeStack(-1)">−</button>
+              <div class="mctrl-box">
+                <div class="mctrl-val" id="stack">0</div>
+                <div class="mctrl-sub">additional</div>
+              </div>
+              <button class="mcbtn" onclick="changeStack(1)">+</button>
+            </div>
+          </div>
+        </div>
+
+        <hr class="modal-divider">
+
+        <div class="modal-section">
+          <div class="modal-section-title">MIDI Keyboard</div>
+          <div class="midi-status" id="midiInputDevicesInfo">MIDI Subsystem</div>
+          <select id="midiInputDevices" class="midi-sel"></select>
+          <button class="midi-ref" onclick="requestMIDIAccess()">⟳ Scan MIDI Devices</button>
+        </div>
+
+      </div>
+
+      <div class="modal-footer">
+        <button class="modal-close" onclick="closeSettings()">Done</button>
+      </div>
+    </div>
   </div>
-</div>
-<script src="Scripts/keys.js"></script>
+
+  <script src="Scripts/keys.js"></script>
 </body>
 </html>
