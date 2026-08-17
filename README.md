@@ -10,7 +10,7 @@ A browser-based digital harmonium built with native web technologies.
 
 Web Harmonium is a lightweight digital harmonium that runs entirely in the browser.
 
-It uses the Web Audio API for sample playback and audio processing, with the keyboard interface implemented using HTML, CSS, and JavaScript.
+It uses the Web Audio API for sample playback and audio processing, with the keyboard interface.
 
 The project is frontend-only and does not require a backend, database, or server-side application.
 
@@ -31,7 +31,7 @@ No frontend framework is required.
 ---
 
 ## Project Structure
-
+```text
 web-harmonium/
 ├── index.html
 ├── Styles/
@@ -46,6 +46,8 @@ web-harmonium/
 │   └── manifest.json
 └── icons/
     └── favicon.png
+
+```
 
 ### index.html
 
@@ -141,7 +143,7 @@ The mapping is defined in `Scripts/sound_sys.js`.
 ## Audio Engine
 
 The audio system is built around the browser's native Web Audio API.
-
+```text
 The basic signal path is:
 
 AudioBufferSourceNode
@@ -157,6 +159,7 @@ AudioBufferSourceNode
         |
         v
  AudioContext.destination
+ ```
 
 The harmonium sample is loaded into an AudioBuffer and played through individual AudioBufferSourceNode instances.
 
@@ -395,6 +398,6 @@ See [`LICENSE`](LICENSE) for the license applicable to this project.
 
 ## Author
 
-**XENTO**
+**Xento**
 
 GitHub: https://github.com/thexento
